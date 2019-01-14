@@ -40,23 +40,25 @@ class Radio(object):
             self.volume = self.saved_volume
 
 
-my_radio = Radio()
+# If module is run directly, show demo
+if __name__ == "__main__":
+    my_radio = Radio()
 
-while True:
-    print("Volume: {}% | {}".format(my_radio.volume, my_radio.current_mode))
-    print("1. Change mode\n2. Increase volume\n3. Decrease volume\n4. Mute/unmute\n0. Exit")
+    while True:
+        print("Volume: {}% | {}".format(my_radio.volume, my_radio.current_mode))
+        print("1. Change mode\n2. Increase volume\n3. Decrease volume\n4. Mute/unmute\n0. Exit")
 
-    option = input("Select option: ").strip()
+        option = input("Select option: ").strip()
 
-    if option == "1":
-        my_radio.change_mode()
-    elif option == "2":
-        my_radio.increase_volume()
-    elif option == "3":
-        my_radio.decrease_volume()
-    elif option == "4":
-        my_radio.toggle_mute()
-    elif option == "0":
-        break
-    else:
-        print("Invalid option")
+        if option == "1":
+            my_radio.change_mode()
+        elif option == "2":
+            my_radio.increase_volume()
+        elif option == "3":
+            my_radio.decrease_volume()
+        elif option == "4":
+            my_radio.toggle_mute()
+        elif option == "0":
+            break
+        else:
+            print("Invalid option")
