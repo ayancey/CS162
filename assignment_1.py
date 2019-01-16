@@ -5,21 +5,22 @@
 
 
 class Radio(object):
-    modes = ["FM", "AM", "CD", "SAT", "AUX"]
+    default_modes = ["FM", "AM", "CD", "AUX"]
 
     # Initial volume is set to 20%, initial mode is set to FM
     def __init__(self):
         self.volume = 20
         self.saved_volume = self.volume
-        self.current_mode = self.modes[0]
+        self.modes = list(self.default_modes)
+        self.current_mode = self.modes.pop()
 
     # Cycle through modes
     def change_mode(self):
-        i = self.modes.index(self.current_mode)
-        if i + 1 < len(self.modes):
-            self.current_mode = self.modes[i + 1]
-        else:
-            self.current_mode = self.modes[0]
+        if len(self.modes) == 0:
+            # reload modes when list is empty
+            self.modes = list(self.default_modes)
+
+        self.current_mode = self.modes.pop()
 
     # Increase the volume by 10% if not already at max volume
     def increase_volume(self):
