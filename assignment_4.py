@@ -1,79 +1,55 @@
-import random
+from tkinter import *
 import time
+import random
 
-# fun with sorting
+root = Tk()
+
+text_elements = []
 
 
-def is_sorted(l):
-    last = None
-    for o in l:
-        if last:
-            if o < last:
-                return False
-            last = o
+lowest_val = StringVar()
+lowest_val.set("Lowest value is: Unknown")
+
+
+def find_smallest():
+    # Find the text box with the lowest value, display it in the label, remove it from the list
+    global text_elements
+    global lowest_val
+
+    smallest_element = None
+    smallest_value = None
+
+    for t in text_elements:
+        i = int(t.get("1.0", END).strip())
+
+        if smallest_element:
+            if i < smallest_value:
+                smallest_element = t
+                smallest_value = i
         else:
-            last = o
-    return True
+            smallest_element = t
+            smallest_value = i
+
+    if smallest_element:
+        smallest_element.configure(background='black')
+        text_elements.remove(smallest_element)
+        lowest_val.set("Lowest value is: {}".format(smallest_value))
 
 
-def bogo(l):
-    while not is_sorted(l):
-        random.shuffle(l)
-    return l
+one_to_ten = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+
+for i in range(10):
+    t = Text(root, height=2, width=30)
+    t.place(x=25, y=40 + (i * 40))
+    t.insert(END, one_to_ten.pop(random.randint(0,len(one_to_ten)-1)))
+    text_elements.append(t)
 
 
-def rlistn(n):
-    new_list = []
-    for i in range(n):
-        new_list.append(random.randint(1, 100))
-    return new_list
+lowest_label = Label(root, textvariable=lowest_val)
+lowest_label.place(x=400, y=150)
 
+b = Button(root, text="Find smallest", command=find_smallest)
+b.place(x=400, y=200)
 
-# i think this is selection sort
-def my_sort(l):
-    left = []
-    for e in l:
-        if left:
-            i = len(left)
-            while True:
-                if i < 0:
-                    left.insert(0, e)
-                    break
-
-                m = left[i - 1]
-
-                if e > m:
-                    left.insert(i, e)
-                    break
-                else:
-                    i -= 1
-        else:
-            left.append(e)
-
-    return left
-
-
-
-test_list = rlistn(9)
-
-# c = None
-#
-# while True:
-#     if c:
-#
-#     else:
-#         c = l.pop(0)
-#     d = l.pop(0)
-#     input()
-
-print(test_list)
-
-before = time.time()
-print(bogo(list(test_list)))
-print("bogo took {} seconds".format(time.time() - before))
-
-print(test_list)
-
-before = time.time()
-print(my_sort(list(test_list)))
-print("my sort took {} seconds".format(time.time() - before))
+root.geometry("640x480")
+root.mainloop()
