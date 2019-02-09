@@ -1,6 +1,7 @@
 from tkinter import *
 import random
 from tkinter import simpledialog
+import math
 
 root = Tk()
 
@@ -32,7 +33,7 @@ def search():
     update_colors()
 
     while True:
-        # If value is not found
+        # If value is not found, make everything red
         if len(candidate_labels) == 1:
             for l in all_labels:
                 l.configure(background="red")
@@ -40,14 +41,17 @@ def search():
 
         update_colors()
 
-        slice_index = len(candidate_labels) // 2
+        # Find the label in the middle of the list, always rounds up
+        slice_index = math.ceil(len(candidate_labels) / 2)
         l = candidate_labels[slice_index]
         val = l.cget("text")
         l.configure(background="blue")
 
+        # Animate
         root.update()
         root.after(1000)
 
+        # Split the list in half based on if the value is greater than or less than the search variable
         if val > v:
             candidate_labels = candidate_labels[:slice_index]
         elif val < v:
@@ -58,8 +62,8 @@ def search():
             root.update()
             break
 
+        # Animate
         update_colors()
-
         root.update()
         root.after(1500)
 
