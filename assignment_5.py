@@ -36,6 +36,14 @@ def shuffle():
 
 def search():
     v = simpledialog.askinteger("Input", "What would you like to search for?", parent=root, minvalue=1, maxvalue=99)
+    # stop if empty value
+    if not v:
+        return
+
+    search_button.configure(state=DISABLED)
+    shuffle_button.configure(state=DISABLED)
+    demo_mode_checkbox.configure(state=DISABLED)
+
     search_label.configure(text="Target: {}".format(v))
 
     candidate_labels = all_labels
@@ -55,6 +63,9 @@ def search():
             for l in all_labels:
                 l.configure(background="red")
             search_label.configure(text="Did not find target number {}".format(v))
+            search_button.configure(state=NORMAL)
+            shuffle_button.configure(state=NORMAL)
+            demo_mode_checkbox.configure(state=NORMAL)
             break
 
         update_colors()
@@ -68,9 +79,9 @@ def search():
         # Animate
         root.update()
         if demo.get():
-            root.after(3000)
-        else:
             root.after(1000)
+        else:
+            root.after(250)
 
         # Split the list in half based on if the value is greater than or less than the search variable
         if middle_value > v:
@@ -82,15 +93,18 @@ def search():
             candidate_labels = [middle_label]
             update_colors()
             search_label.configure(text="Found target number {}".format(v))
+            search_button.configure(state=NORMAL)
+            shuffle_button.configure(state=NORMAL)
+            demo_mode_checkbox.configure(state=NORMAL)
             break
 
         # Animate
         update_colors()
         root.update()
         if demo.get():
-            root.after(5000)
+            root.after(2000)
         else:
-            root.after(1500)
+            root.after(500)
 
 
 # Set up initial values and labels
@@ -105,8 +119,8 @@ search_label = Label(root, text="<-- Search for a number in list", font=("Courie
 search_label.place(x=100, y=310)
 
 demo = IntVar()
-demo_mode = Checkbutton(root, text="Demo mode (animate slower)", variable=demo)
-demo_mode.place(x=50, y=15)
+demo_mode_checkbox = Checkbutton(root, text="Demo mode (animate slower)", variable=demo)
+demo_mode_checkbox.place(x=50, y=15)
 
 shuffle_button = Button(root, text="Shuffle", command=shuffle)
 shuffle_button.place(x=1000, y=20)
