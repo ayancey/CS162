@@ -125,6 +125,7 @@ demo_mode_checkbox.place(x=50, y=15)
 shuffle_button = Button(root, text="Shuffle", command=shuffle)
 shuffle_button.place(x=1000, y=20)
 
+root.title("Animated Search")
 root.resizable(False, False)
 root.geometry("1100x350")
 root.mainloop()
