@@ -60,6 +60,17 @@ def my_sort(l):
     return left
 
 
+def insertion_sort(unsorted_list):
+    sorted_list = [unsorted_list.pop(0)]
+    for i in unsorted_list:
+        lowest_index = 0
+        for index, value in enumerate(sorted_list):
+            if i > value:
+                lowest_index = index + 1
+        sorted_list.insert(lowest_index, i)
+    return sorted_list
+
+
 def sort():
     while not is_sorted(map(lambda jk: int(jk.cget("text")), all_labels)):
         i = 0
@@ -102,10 +113,6 @@ def sort():
 
             root.update()
             #root.after(10)
-
-
-
-
 
             i += 1
 
