@@ -1,5 +1,3 @@
-import random
-import time
 from tkinter import *
 import random
 from tkinter import simpledialog
@@ -7,115 +5,117 @@ import math
 
 root = Tk()
 
-
-# fun with sorting
-
-
-def is_sorted(l):
-    last = None
-    for o in l:
-        if last:
-            if o < last:
-                return False
-            last = o
-        else:
-            last = o
-    return True
+values = []
+sorted_labels = []
+all_labels = []
 
 
-def bogo(l):
-    while not is_sorted(l):
-        random.shuffle(l)
-    return l
-
-
-def rlistn(n):
-    new_list = []
-    for i in range(n):
-        new_list.append(random.randint(1, 100))
-    return new_list
-
-
-# i think this is selection sort
-def my_sort(l):
-    left = []
-    for e in l:
-        if left:
-            i = len(left)
-            while True:
-                if i < 0:
-                    left.insert(0, e)
-                    break
-
-                m = left[i - 1]
-
-                if e > m:
-                    left.insert(i, e)
-                    break
-                else:
-                    i -= 1
-        else:
-            left.append(e)
-
-    return left
-
-
-def insertion_sort(unsorted_list):
-    sorted_list = [unsorted_list.pop(0)]
-    for i in unsorted_list:
-        lowest_index = 0
-        for index, value in enumerate(sorted_list):
-            if i > value:
-                lowest_index = index + 1
-        sorted_list.insert(lowest_index, i)
-    return sorted_list
+# def shuffle():
+#     global values
+#     global all_labels
+#
+#     # Remove previous labels
+#     if all_labels:
+#         for l in all_labels:
+#             l.destroy()
 
 
 def sort():
-    while not is_sorted(map(lambda jk: int(jk.cget("text")), all_labels)):
-        i = 0
-        while i < len(all_labels) - 1:
-            for l in all_labels:
-                l.configure(background="gray")
+    global sorted_labels
+    global all_labels
 
-            compare_1 = all_labels[i]
-            compare_2 = all_labels[i + 1]
+    lowest_label = None
 
-            compare_1.configure(background="green")
-            compare_2.configure(background="green")
+    for l in all_labels:
+        if lowest_label:
+            if l.cget("text") < lowest_label.cget("text"):
+                lowest_label = l
+        else:
+            lowest_label = l
 
-            if int(compare_1.cget("text")) > int(compare_2.cget("text")):
-                x_1 = compare_1.winfo_x()
-                y_1 = compare_1.winfo_y()
+    all_labels.remove(lowest_label)
+    sorted_labels.append(lowest_label)
 
-                x_2 = compare_2.winfo_x()
-                y_2 = compare_2.winfo_y()
+    # Set all labels to gray
+    for label in all_labels:
+        label.configure(background="gray")
 
-                x_dist = (x_2 - x_1) / 2
-                y_dist = (y_2 - y_1) / 2
+    # Set only candidate labels to green
+    for label in sorted_labels:
+        label.configure(background="green")
 
-                for aakakaka in range(2):
-                    x_1 += x_dist
-                    y_1 += y_dist
-                    compare_1.place(x=x_1, y=y_1)
-                    root.update()
-                    #root.after(10)
 
-                for aakakaka2 in range(2):
-                    x_2 -= x_dist
-                    y_2 -= y_dist
-                    compare_2.place(x=x_2, y=y_2)
-                    root.update()
-                    #root.after(10)
 
-                all_labels[i] = compare_2
-                all_labels[i + 1] = compare_1
-
-            root.update()
-            #root.after(10)
-
-            i += 1
-
+    # v = simpledialog.askinteger("Input", "What would you like to search for?", parent=root, minvalue=1, maxvalue=99)
+    # # stop if empty value
+    # if not v:
+    #     return
+    #
+    # sort_button.configure(state=DISABLED)
+    # shuffle_button.configure(state=DISABLED)
+    # demo_mode_checkbox.configure(state=DISABLED)
+    #
+    # sort_label.configure(text="Target: {}".format(v))
+    #
+    # candidate_labels = all_labels
+    #
+    # def update_colors():
+    #     # Set all labels to gray
+    #     for label in all_labels:
+    #         label.configure(background="gray")
+    #
+    #     # Set only candidate labels to green
+    #     for label in candidate_labels:
+    #         label.configure(background="green")
+    #
+    # while True:
+    #     # If there's only one value or less left, we couldn't find the number in the list
+    #     if len(candidate_labels) <= 1:
+    #         for l in all_labels:
+    #             l.configure(background="red")
+    #         sort_label.configure(text="Did not find target number {}".format(v))
+    #         sort_button.configure(state=NORMAL)
+    #         shuffle_button.configure(state=NORMAL)
+    #         demo_mode_checkbox.configure(state=NORMAL)
+    #         break
+    #
+    #     update_colors()
+    #
+    #     # Find the label in the middle of the list, always rounds down
+    #     slice_index = math.floor(len(candidate_labels) / 2)
+    #     middle_label = candidate_labels[slice_index]
+    #     middle_value = middle_label.cget("text")
+    #     middle_label.configure(background="blue")
+    #
+    #     # Animate
+    #     root.update()
+    #     if demo.get():
+    #         root.after(1000)
+    #     else:
+    #         root.after(250)
+    #
+    #     # Split the list in half based on if the value is greater than or less than the search variable
+    #     if middle_value > v:
+    #         candidate_labels = candidate_labels[:slice_index]
+    #     elif middle_value < v:
+    #         candidate_labels = candidate_labels[slice_index:]
+    #     else:
+    #         # If it's not greater than, or less than, it must be equal to!
+    #         candidate_labels = [middle_label]
+    #         update_colors()
+    #         sort_label.configure(text="Found target number {}".format(v))
+    #         sort_button.configure(state=NORMAL)
+    #         shuffle_button.configure(state=NORMAL)
+    #         demo_mode_checkbox.configure(state=NORMAL)
+    #         break
+    #
+    #     # Animate
+    #     update_colors()
+    #     root.update()
+    #     if demo.get():
+    #         root.after(2000)
+    #     else:
+    #         root.after(500)
 
 
 # Generate 100 random integers ranging between 1 and 100
@@ -123,9 +123,6 @@ values = []
 for i in range(100):
     values.append(random.randint(1, 100))
 
-
-# Put those integers into labels, 5 rows of 20 labels
-all_labels = []
 for i in range(5):
     for j in range(20):
         l = Label(root, text=values.pop(0), background="gray", height=2, width=4, font=("Courier", 12))
@@ -133,34 +130,22 @@ for i in range(5):
         all_labels.append(l)
 
 
+# Put those integers into labels, 5 rows of 20 labels
 
-# test_list = rlistn(9)
 
-# c = None
-#
-# while True:
-#     if c:
-#
-#     else:
-#         c = l.pop(0)
-#     d = l.pop(0)
-#     input()
-
-#print(test_list)
-
-#before = time.time()
-#print(bogo(list(test_list)))
-#print("bogo took {} seconds".format(time.time() - before))
-
-#print(test_list)
-
-#before = time.time()
-#print(my_sort(list(test_list)))
-#print("my sort took {} seconds".format(time.time() - before))
-
+# Set up buttons, labels, etc...
 sort_button = Button(root, text="Sort", command=sort)
 sort_button.place(x=50, y=310)
 
+sort_label = Label(root, text="<-- Sort list", font=("Courier", 12))
+sort_label.place(x=100, y=310)
+
+demo = IntVar()
+demo_mode_checkbox = Checkbutton(root, text="Demo mode (animate slower)", variable=demo)
+demo_mode_checkbox.place(x=50, y=15)
+
+shuffle_button = Button(root, text="Shuffle")
+shuffle_button.place(x=1000, y=20)
 
 root.title("Animated Sort")
 root.resizable(False, False)
