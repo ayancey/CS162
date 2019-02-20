@@ -67,6 +67,8 @@ def sort():
     shuffle_button.configure(state=DISABLED)
     demo_mode_checkbox.configure(state=DISABLED)
 
+    sort_label.configure(text="Sorting list...")
+
     while all_labels:
         # Find lowest value in big stack
         lowest_label = None
@@ -88,9 +90,9 @@ def sort():
         root.update()
 
         if demo.get():
-            root.after(1000)
+            root.after(500)
         else:
-            root.after(100)
+            root.after(50)
         reorder()
 
     sort_label.configure(text="List successfully sorted!")
