@@ -1,6 +1,8 @@
 # Dead simple roguelike
+# Loosely following libtcod tutorial on roguebasin.com
 # Alex Yancey
 # Joseph Jess, CS162
+
 import random
 import curses
 import math
@@ -9,125 +11,26 @@ import math
 from bresenham import bresenham
 
 
-tiles = []
-
-width = 100
-height = 20
-
-for i in range(height):
-    l = []
-    for j in range(width):
-        l.append(".")
-    tiles.append(l)
-
-
-def room(start_x, start_y, width, height):
-    for y in range(width):
-        for x in range(height):
-            tiles[start_y + y][start_x + x] = "#"
-
-    for y in range(width - 2):
-        for x in range(height - 2):
-            tiles[start_y + y + 1][start_x + x + 1] = "."
-
-    #tiles[start_y + 2][start_x + 4] = "@"
+class Tile(object):
+    def __init__(self, blocking, block_sight, c):
+        self.blocking = blocking
+        self.block_sight = block_sight
+        self.c = c
 
 
 
-# reference is top left of room
+# Initialize curses
+stdscr = curses.initscr()
+curses.noecho()
+curses.cbreak()
+stdscr.keypad(True)
 
 
-player_y = height // 2
-player_x = width // 2
-
-
-money_y = player_y - 5
-money_x = player_x - 15
-
-dist_x = money_x - player_x
-dist_y = money_y - player_y
-
-
-
-# money
-tiles[money_y][money_x] = "$"
-
-#wall
-for i in range(10):
-    tiles[(player_y - 5) + i][player_x - 10] = "#"
-
-# player
-
-
-
-
-# for point in bresenham(player_x, player_y, money_x, money_y):
-#     tiles[point[1]][point[0]] = "#"
-#     print(point)
-
-#
-# while True:
-#     if target_x < money_x:
-#         target_x += 1
-#     elif target_x > money_x:
-#         target_x -= 1
-#
-#     if target_y < money_y:
-#         target_y += 1
-#     elif target_y > money_y:
-#         target_y -= 1
-#
-#     tiles[target_y][target_x] = "#"
-#
-#     if target_x == money_x:
-#         if target_y == money_y:
-#             break
-
-
-# print((target_x, target_y))
-# print((money_x, money_y))
-
-
-# # up
-# for i in range(5):
-#     tiles[player_y - 1 -  i][player_x] = "|"
-#
-# # down
-# for i in range(5):
-#     tiles[player_y + i + 1][player_x] = "|"
-#
-# # left
-# for i in range(5):
-#     tiles[player_y][player_x -i - 1] = "-"
-#
-# # right
-# for i in range(5):
-#     tiles[player_y][player_x + i + 1] = "-"
-#
-# # up left
-# for i in range(5):
-#     tiles[player_y -1 - i][player_x -i - 1] = "-"
-#
-# # up right
-# for i in range(5):
-#     tiles[player_y -1 - i][player_x +i + 1] = "-"
-#
-#
-# # bottom left
-# for i in range(5):
-#     tiles[player_y +1 +i][player_x -i - 1] = "-"
-#
-# # bottom right
-# for i in range(5):
-#     tiles[player_y +1 + i][player_x +i + 1] = "-"
-
-
-#
-# room(start_x, start_y, 5, 5)
-#
-# room(0, 0, 5, 5)
-
-#input()
+# all intents
+INTENT_MOVE_UP = 0
+INTENT_MOVE_DOWN = 1
+INTENT_MOVE_LEFT = 2
+INTENT_MOVE_RIGHT = 3
 
 
 class Object(object):
@@ -136,71 +39,150 @@ class Object(object):
         self.y = y
         self.c = c
 
+        self.intent = None
+
     def draw(self):
-        stdscr.addstr(self.y, self.x, c)
+        stdscr.addstr(self.y + 1, self.x, self.c)
 
-
-class Tile(object):
-    def __init__(self):
+    def ai(self):
         pass
 
 
-#representation = ""
+class Enemy(Object):
+    def ai(self):
+        pass
+        #self.intent = INTENT_MOVE_UP
 
 
-stdscr = curses.initscr()
-curses.noecho()
-curses.cbreak()
-stdscr.keypad(True)
+player = Object(2, 2, "@")
+monster = Enemy(5, 10, "s")
 
 
-def draw_stuff():
+all_objects = [player, monster]
+
+tiles = []
+
+width = 100
+height = 20
+
+# Create all blank tiles to start with
+for i in range(height):
+    new = []
+    for j in range(width):
+        new.append(Tile(False, False, "."))
+    tiles.append(new)
+
+
+def vert_wall(x, y, h):
+    for i in range(h):
+        tiles[i + y][x] = Tile(True, True, "#")
+
+
+def horiz_wall(x, y, w):
+    for i in range(w):
+        tiles[y][x + i] = Tile(True, True, "#")
+
+
+# box in everything
+horiz_wall(0, 0, width)
+horiz_wall(0, height - 1, width)
+vert_wall(0, 0, height)
+vert_wall(width - 1, 0, height)
+
+
+# maze like
+
+vert_wall(5, 0, 5)
+horiz_wall(0, 7, 10)
+
+vert_wall(20, 0, 10)
+horiz_wall(0, 12, 30)
+
+vert_wall(25, 0, 10)
+
+vert_wall(29, 12, 8)
+vert_wall(33, 12, 8)
+
+vert_wall(40, 0, height)
+
+
+def draw_stuff_2():
+    # Draw tiles, if they're not blocked by a tile that blocks sight
     for y, row in enumerate(tiles):
         for x, column in enumerate(row):
-            blocked = False
-       # if column == "$":
-            if column != "#":
-                b = list(bresenham(player_x, player_y, x, y))
-                if len(b) < 5:
-                    for point in b:
-                        #print(point)
-                        if tiles[point[1]][point[0]] == "#":
-                            blocked = True
-                else:
-                    blocked = True
+            do_draw = True
 
+            b = list(bresenham(player.x, player.y, x, y))
 
-            if blocked:
-                stdscr.addstr(y, x, " ")
+            # object can't block itself
+            b.remove((x, y))
+
+            for point in b:
+                if tiles[point[1]][point[0]].block_sight:
+                    do_draw = False
+                    break
+
+            if do_draw:
+                stdscr.addstr(y + 1, x, column.c)
             else:
-                stdscr.addstr(y, x, column)
-        # representation += "\n"
+                stdscr.addstr(y + 1, x, " ")
+
+    # Draw objects, if they're not blocked by a tile that blocks sight
+    for o in all_objects:
+        b = list(bresenham(player.x, player.y, o.x, o.y))
+
+        do_draw = True
+
+        for point in b:
+            if tiles[point[1]][point[0]].block_sight:
+                do_draw = False
+                break
+
+        if do_draw:
+            o.draw()
+
 
 while True:
+    stdscr.addstr(0,0, "Nice")
+
+    for o in all_objects:
+        # Allow objects to make decisions, leading to intents
+        o.ai()
+
+        theoretical_x = o.x
+        theoretical_y = o.y
+
+        # Handle intents
+        if o.intent == INTENT_MOVE_UP:
+            theoretical_y -= 1
+        elif o.intent == INTENT_MOVE_DOWN:
+            theoretical_y += 1
+        elif o.intent == INTENT_MOVE_LEFT:
+            theoretical_x -= 1
+        elif o.intent == INTENT_MOVE_RIGHT:
+            theoretical_x += 1
+
+        # Move the object if it's not being blocked
+        if not tiles[theoretical_y][theoretical_x].blocking:
+            o.x = theoretical_x
+            o.y = theoretical_y
+
+        o.intent = None
+
+
+    # Draw everything
+    draw_stuff_2()
+
+    #stdscr.refresh()
+
+    # Ask the user what their next move is
     key = stdscr.getkey()
 
     if key == "KEY_UP":
-        player_y -= 1
+        player.intent = INTENT_MOVE_UP
     elif key == "KEY_DOWN":
-        player_y += 1
+        player.intent = INTENT_MOVE_DOWN
     elif key == "KEY_LEFT":
-        player_x -= 1
+        player.intent = INTENT_MOVE_LEFT
     elif key == "KEY_RIGHT":
-        player_x += 1
-
-    draw_stuff()
-    stdscr.addstr(player_y, player_x, "@")
-    stdscr.refresh()
-
-
-#
-# tiles[room_start] = "."
-#
-# representation = ""
-#
-# for n, t in enumerate(tiles):
-#     if (n % width) == 0:
-#         representation += "\n"
-#     representation += t
-#
-# print(representation)
+        player.intent = INTENT_MOVE_RIGHT
