@@ -6,6 +6,9 @@
 import random
 import curses
 import math
+import random
+import getpass
+
 
 # i tried to implement this myself but math is hard :(
 from bresenham import bresenham
@@ -21,9 +24,14 @@ class Tile(object):
 
 # Initialize curses
 stdscr = curses.initscr()
+curses.start_color()
 curses.noecho()
 curses.cbreak()
 stdscr.keypad(True)
+
+curses.init_pair(1, curses.COLOR_CYAN, curses.COLOR_BLACK)
+curses.init_pair(2, curses.COLOR_RED, curses.COLOR_BLACK)
+curses.init_pair(3, curses.COLOR_BLACK, curses.COLOR_BLACK)
 
 
 # all intents
@@ -31,9 +39,21 @@ INTENT_MOVE_UP = 0
 INTENT_MOVE_DOWN = 1
 INTENT_MOVE_LEFT = 2
 INTENT_MOVE_RIGHT = 3
+INTENT_ATTACK = 4
+
+
+all_messages = []
+
+
+def status(msg):
+    global all_messages
+    all_messages.insert(0, [msg, 3])
 
 
 class Object(object):
+    name = None
+    attack_verb = None
+
     def __init__(self, x, y, c):
         self.x = x
         self.y = y
@@ -44,21 +64,61 @@ class Object(object):
     def draw(self):
         stdscr.addstr(self.y + 1, self.x, self.c)
 
-    def ai(self):
+    def ai(self, p):
         pass
 
 
-class Enemy(Object):
-    def ai(self):
-        pass
-        #self.intent = INTENT_MOVE_UP
+class Killable(Object):
+    pass
 
 
-player = Object(2, 2, "@")
-monster = Enemy(5, 10, "s")
+class Enemy(Killable):
+    # TODO: Make this less shitty
+    # Pass player object, for tracking
+    def ai(self, p):
+        # Decide to move up/down/left/right, based on where the player is
+
+        # Move vertically or horizontally based on a coin flip, makes the movement look more realistic
+        vert_or_horiz = random.choice([True, False])
+
+        needed_intent = None
+        if p.y < self.y:
+            needed_intent = INTENT_MOVE_UP
+        elif p.y > self.y:
+            needed_intent = INTENT_MOVE_DOWN
+
+        if needed_intent is not None:
+            if vert_or_horiz:
+                self.intent = needed_intent
+                return
+
+        if p.x < self.x:
+            self.intent = INTENT_MOVE_LEFT
+        elif p.x > self.x:
+            self.intent = INTENT_MOVE_RIGHT
 
 
-all_objects = [player, monster]
+class Player(Killable):
+    # set player name to username of computer
+    name = getpass.getuser()
+    attack_dmg = 100
+    attack_verb = "{} defends helplessly against the {}"
+
+
+class Zombie(Enemy):
+    name = "Zombie"
+    attack_dmg = 3
+    attack_verb = "{} claws at {}"
+
+    # Make zombies red
+    def draw(self):
+        stdscr.addstr(self.y + 1, self.x, self.c, curses.color_pair(2))
+
+
+player = Player(2, 2, "@")
+player.hp = 10
+
+all_objects = [player]
 
 tiles = []
 
@@ -106,7 +166,37 @@ vert_wall(33, 12, 8)
 vert_wall(40, 0, height)
 
 
-def draw_stuff_2():
+for i in range(20):
+    while True:
+        x = random.randint(1, width - 1)
+        y = random.randint(1, height - 1)
+        if tiles[y][x].c == ".":
+            z = Zombie(x, y, "z")
+            z.hp = 10
+            all_objects.append(z)
+            break
+
+
+# sort of expensive method, use wisely
+def has_los(a, b):
+    bres = list(bresenham(a.x, a.y, b.x, b.y))
+    # a can't block itself
+    bres.remove((a.x, a.y))
+
+    for point in bres:
+        if tiles[point[1]][point[0]].block_sight:
+            return False
+
+    return True
+
+
+def draw_everything():
+    # global variables are bad, sorry
+    global stdscr
+    global all_messages
+
+    stdscr.erase()
+
     # Draw tiles, if they're not blocked by a tile that blocks sight
     for y, row in enumerate(tiles):
         for x, column in enumerate(row):
@@ -123,9 +213,14 @@ def draw_stuff_2():
                     break
 
             if do_draw:
-                stdscr.addstr(y + 1, x, column.c)
+                stdscr.addstr(y + 1, x, column.c, curses.color_pair(1))
             else:
                 stdscr.addstr(y + 1, x, " ")
+
+    # Cheap hack to make the player always stand on top of objects
+    if player.hp > 0:
+        all_objects.remove(player)
+        all_objects.append(player)
 
     # Draw objects, if they're not blocked by a tile that blocks sight
     for o in all_objects:
@@ -141,48 +236,110 @@ def draw_stuff_2():
         if do_draw:
             o.draw()
 
+    # Show status messages, which decay after 3 turns
+    if all_messages:
+        all_messages = all_messages[:3]
+        prepared = ""
+        for n, msg in enumerate(all_messages):
+            prepared += msg[0]
+            if n < len(all_messages) - 1:
+                prepared += ", "
+            msg[1] -= 1
 
-while True:
-    stdscr.addstr(0,0, "Nice")
+        for msg in all_messages:
+            if msg[1] < 1:
+                all_messages.remove(msg)
 
-    for o in all_objects:
-        # Allow objects to make decisions, leading to intents
-        o.ai()
-
-        theoretical_x = o.x
-        theoretical_y = o.y
-
-        # Handle intents
-        if o.intent == INTENT_MOVE_UP:
-            theoretical_y -= 1
-        elif o.intent == INTENT_MOVE_DOWN:
-            theoretical_y += 1
-        elif o.intent == INTENT_MOVE_LEFT:
-            theoretical_x -= 1
-        elif o.intent == INTENT_MOVE_RIGHT:
-            theoretical_x += 1
-
-        # Move the object if it's not being blocked
-        if not tiles[theoretical_y][theoretical_x].blocking:
-            o.x = theoretical_x
-            o.y = theoretical_y
-
-        o.intent = None
+        stdscr.addstr(0, 0, prepared)
 
 
-    # Draw everything
-    draw_stuff_2()
+if __name__ == "__main__":
+    status("Welcome to my final project! f: fire, r: reload, q: quit")
 
-    #stdscr.refresh()
+    # The main game loop.
+    while True:
+        for o in all_objects:
+            # Allow objects to make decisions, leading to intents
+            o.ai(player)
 
-    # Ask the user what their next move is
-    key = stdscr.getkey()
+            theoretical_x = o.x
+            theoretical_y = o.y
 
-    if key == "KEY_UP":
-        player.intent = INTENT_MOVE_UP
-    elif key == "KEY_DOWN":
-        player.intent = INTENT_MOVE_DOWN
-    elif key == "KEY_LEFT":
-        player.intent = INTENT_MOVE_LEFT
-    elif key == "KEY_RIGHT":
-        player.intent = INTENT_MOVE_RIGHT
+            # Handle intents
+            if o.intent == INTENT_MOVE_UP:
+                theoretical_y -= 1
+            elif o.intent == INTENT_MOVE_DOWN:
+                theoretical_y += 1
+            elif o.intent == INTENT_MOVE_LEFT:
+                theoretical_x -= 1
+            elif o.intent == INTENT_MOVE_RIGHT:
+                theoretical_x += 1
+
+            # Move the object if it's not being blocked
+            if not tiles[theoretical_y][theoretical_x].blocking:
+                target = None
+
+                if isinstance(o, Killable):
+                    for oo in all_objects:
+                        if theoretical_x == oo.x:
+                            if theoretical_y == oo.y:
+                                if o != oo:
+                                    # Zombies won't attack other zombies
+                                    if type(o) != type(oo):
+                                        if isinstance(oo, Killable):
+                                            # only announce things if the player can see it
+                                            if o == player or has_los(player, o):
+                                                status(o.attack_verb.format(o.name, oo.name))
+                                            target = oo
+                                            o.intent = INTENT_ATTACK
+                                        else:
+                                            if o == player or has_los(player, o):
+                                                status("{} stands on a {}".format(o.name, oo.name))
+
+                if not o.intent == INTENT_ATTACK:
+                    # When moving, you can step on objects, but you can't step on other players/enemies
+                    no_objects_intheway = True
+                    for oo in all_objects:
+                        if theoretical_x == oo.x:
+                            if theoretical_y == oo.y:
+                                if isinstance(oo, Killable):
+                                    no_objects_intheway = False
+
+                    if no_objects_intheway:
+                        o.x = theoretical_x
+                        o.y = theoretical_y
+
+                if o.intent == INTENT_ATTACK:
+                    # Attacker can do between 50% and 150% of their base damage
+                    projected_dmg = int(o.attack_dmg * (random.randint(5, 15) / 10))
+
+                    target.hp -= projected_dmg
+
+                    if target.hp < 1:
+                        if o == player or has_los(player, o):
+                            status("{} has died!".format(target.name))
+                        corpse = Object(target.x, target.y, "c")
+                        corpse.name = "{} corpse".format(target.name)
+                        corpse.hp = 100
+                        all_objects.remove(target)
+                        all_objects.append(corpse)
+
+
+            o.intent = None
+
+        # Draw tiles, and objects
+        draw_everything()
+
+        # Ask the user what their next move is
+        key = stdscr.getkey()
+
+        if key == "KEY_UP":
+            player.intent = INTENT_MOVE_UP
+        elif key == "KEY_DOWN":
+            player.intent = INTENT_MOVE_DOWN
+        elif key == "KEY_LEFT":
+            player.intent = INTENT_MOVE_LEFT
+        elif key == "KEY_RIGHT":
+            player.intent = INTENT_MOVE_RIGHT
+        elif key == "q":
+            break
