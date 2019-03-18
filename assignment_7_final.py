@@ -27,7 +27,7 @@ stdscr.keypad(True)
 
 curses.init_pair(1, curses.COLOR_CYAN, curses.COLOR_BLACK)
 curses.init_pair(2, curses.COLOR_RED, curses.COLOR_BLACK)
-curses.init_pair(3, curses.COLOR_BLACK, curses.COLOR_BLACK)
+curses.init_pair(3, curses.COLOR_GREEN, curses.COLOR_BLACK)
 
 
 # all intents
@@ -71,7 +71,6 @@ class Killable(Object):
 
 
 class Enemy(Killable):
-    # TODO: Make this less shitty
     # Pass player object, for tracking
     def ai(self, p):
         # Decide to move up/down/left/right, based on where the player is
@@ -99,8 +98,8 @@ class Enemy(Killable):
 class Player(Killable):
     # set player name to username of computer
     name = getpass.getuser()
-    attack_dmg = 2
-    attack_verb = "{} defends helplessly against the {}"
+    attack_dmg = 3
+    attack_verb = "{} slaps the {}"
     bullet_dmg = 7
     bullet_rounds = 8
 
@@ -113,6 +112,13 @@ class Zombie(Enemy):
     # Make zombies red
     def draw(self):
         stdscr.addstr(self.y + 1, self.x, self.c, curses.color_pair(2))
+
+
+class Healthpack(Object):
+    name = "health pack"
+
+    def draw(self):
+        stdscr.addstr(self.y + 1, self.x, self.c, curses.color_pair(3))
 
 
 player = Player(2, 2, "@")
@@ -180,24 +186,25 @@ def has_los(a, b):
 
 
 # Spawn a bunch of zombies, out of line of sight to the player, and on the map somewhere
-for i in range(30):
-    while True:
-        x = random.randint(1, width - 1)
-        y = random.randint(1, height - 1)
-        if tiles[y][x].c == ".":
-            another_object_occupying = False
+def spawn_zombies(n):
+    for i in range(n):
+        while True:
+            x = random.randint(1, width - 1)
+            y = random.randint(1, height - 1)
+            if tiles[y][x].c == ".":
+                another_object_occupying = False
 
-            for o in all_objects:
-                if o.x == x:
-                    if o.y == y:
-                        another_object_occupying = True
+                for o in all_objects:
+                    if o.x == x:
+                        if o.y == y:
+                            another_object_occupying = True
 
-            if not another_object_occupying:
-                z = Zombie(x, y, "z")
-                z.hp = 10
-                if not has_los(player, z):
-                    all_objects.append(z)
-                    break
+                if not another_object_occupying:
+                    z = Zombie(x, y, "z")
+                    z.hp = 10
+                    if not has_los(player, z):
+                        all_objects.append(z)
+                        break
 
 
 def draw_everything():
@@ -226,6 +233,16 @@ def draw_everything():
                 stdscr.addstr(y + 1, x, column.c, curses.color_pair(1))
             else:
                 stdscr.addstr(y + 1, x, " ")
+
+    # Another cheap hack to make killable objects stand on top of regular objects
+    all_objects_2 = list(all_objects)
+    all_killables = []
+    for o in all_objects_2:
+        if isinstance(o, Killable):
+            all_killables.append(o)
+            all_objects.remove(o)
+    for o in all_killables:
+        all_objects.append(o)
 
     # Cheap hack to make the player always stand on top of objects
     if player.hp > 0:
@@ -269,6 +286,9 @@ def draw_everything():
             if n < len(all_messages) - 1:
                 prepared += ", "
         stdscr.addstr(0, 0, prepared)
+        # one more hack for the road
+        if "You must reload" in prepared:
+            stdscr.addstr(0, 0, "You must reload!", curses.A_REVERSE)
         all_messages = []
 
     stdscr.refresh()
@@ -278,6 +298,9 @@ if __name__ == "__main__":
     status("Welcome to my final project! f: fire, r: reload, q: quit")
 
     reload_delay = False
+
+    # Spawn 30 zombies to start with
+    spawn_zombies(30)
 
     # The main game loop.
     while True:
@@ -322,7 +345,12 @@ if __name__ == "__main__":
                                             o.intent = INTENT_ATTACK
                                         else:
                                             if o == player or has_los(player, o):
-                                                status("{} stands on a {}".format(o.name, oo.name))
+                                                if (o == player) and isinstance(oo, Healthpack):
+                                                    status("{} uses the health pack".format(o.name))
+                                                    o.hp += 4
+                                                    all_objects.remove(oo)
+                                                else:
+                                                    status("{} stands on a {}".format(o.name, oo.name))
 
                 if not o.intent == INTENT_ATTACK:
                     # When moving, you can step on objects, but you can't step on other players/enemies
@@ -385,11 +413,17 @@ if __name__ == "__main__":
                                 # TODO: Stop repeating logic from attack intent
                                 if closest_killable_object == player or has_los(player, closest_killable_object):
                                     status("{} has died!".format(closest_killable_object.name))
-                                corpse = Object(closest_killable_object.x, closest_killable_object.y, "c")
-                                corpse.name = "{} corpse".format(closest_killable_object.name)
-                                corpse.hp = 100
+                                # 1 in 5 chance of dropping a health pack instead of a corpse
+                                if random.randint(1, 5) == 1:
+                                    healthpack = Healthpack(closest_killable_object.x, closest_killable_object.y, "h")
+                                    all_objects.append(healthpack)
+                                else:
+                                    corpse = Object(closest_killable_object.x, closest_killable_object.y, "c")
+                                    corpse.name = "{} corpse".format(closest_killable_object.name)
+                                    corpse.hp = 100
+                                    all_objects.append(corpse)
                                 all_objects.remove(closest_killable_object)
-                                all_objects.append(corpse)
+
                         else:
                             status("{} misses the {}".format(o.name, closest_killable_object.name))
 
@@ -441,3 +475,6 @@ if __name__ == "__main__":
                 player.intent = INTENT_RELOAD
             elif key == "q":
                 break
+
+        # Spawn 1 zombie at the end of every turn
+        spawn_zombies(1)
