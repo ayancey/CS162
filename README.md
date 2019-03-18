@@ -22,3 +22,6 @@ The game might not work unless it's run directly in your terminal.
     git clone https://github.com/ayancey/CS162.git
     cd CS162
     python assignment_7_final.py
+
+## Screenshots
+![gif](https://i.imgur.com/mILEuuI.gif)
