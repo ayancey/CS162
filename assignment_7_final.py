@@ -374,11 +374,16 @@ if __name__ == "__main__":
                     if target.hp < 1:
                         if o == player or has_los(player, o):
                             status("{} has died!".format(target.name))
-                        corpse = Object(target.x, target.y, "c")
-                        corpse.name = "{} corpse".format(target.name)
-                        corpse.hp = 100
+
+                        if random.randint(1, 2) == 1:
+                            healthpack = Healthpack(target.x, target.y, "h")
+                            all_objects.append(healthpack)
+                        else:
+                            corpse = Object(target.x, target.y, "c")
+                            corpse.name = "{} corpse".format(target.name)
+                            corpse.hp = 100
+                            all_objects.append(corpse)
                         all_objects.remove(target)
-                        all_objects.append(corpse)
 
             if o.intent == INTENT_FIRE:
                 closest_killable_object = None
