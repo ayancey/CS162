@@ -1,5 +1,4 @@
 # Dead simple roguelike
-# Loosely following libtcod tutorial on roguebasin.com
 # Alex Yancey
 # Joseph Jess, CS162
 
@@ -9,6 +8,7 @@ import curses
 import math
 import random
 import getpass
+import time
 
 
 class Tile(object):
@@ -16,7 +16,6 @@ class Tile(object):
         self.blocking = blocking
         self.block_sight = block_sight
         self.c = c
-
 
 
 # Initialize curses
@@ -38,6 +37,7 @@ INTENT_MOVE_LEFT = 2
 INTENT_MOVE_RIGHT = 3
 INTENT_ATTACK = 4
 INTENT_FIRE = 5
+INTENT_RELOAD = 6
 
 
 all_messages = []
@@ -102,6 +102,7 @@ class Player(Killable):
     attack_dmg = 2
     attack_verb = "{} defends helplessly against the {}"
     bullet_dmg = 7
+    bullet_rounds = 8
 
 
 class Zombie(Enemy):
@@ -165,17 +166,6 @@ vert_wall(33, 12, 8)
 vert_wall(40, 0, height)
 
 
-for i in range(20):
-    while True:
-        x = random.randint(1, width - 1)
-        y = random.randint(1, height - 1)
-        if tiles[y][x].c == ".":
-            z = Zombie(x, y, "z")
-            z.hp = 10
-            all_objects.append(z)
-            break
-
-
 # sort of expensive method, use wisely
 def has_los(a, b):
     bres = list(bresenham(a.x, a.y, b.x, b.y))
@@ -187,6 +177,27 @@ def has_los(a, b):
             return False
 
     return True
+
+
+# Spawn a bunch of zombies, out of line of sight to the player, and on the map somewhere
+for i in range(30):
+    while True:
+        x = random.randint(1, width - 1)
+        y = random.randint(1, height - 1)
+        if tiles[y][x].c == ".":
+            another_object_occupying = False
+
+            for o in all_objects:
+                if o.x == x:
+                    if o.y == y:
+                        another_object_occupying = True
+
+            if not another_object_occupying:
+                z = Zombie(x, y, "z")
+                z.hp = 10
+                if not has_los(player, z):
+                    all_objects.append(z)
+                    break
 
 
 def draw_everything():
@@ -238,6 +249,21 @@ def draw_everything():
     # Show status messages, which disappear after next turn
     if all_messages:
         prepared = ""
+
+        # Quick hack to make duplicate messages be displayed more elegantly
+        message_frequency = {}
+        for msg in all_messages:
+            if msg in message_frequency:
+                message_frequency[msg] += 1
+            else:
+                message_frequency[msg] = 1
+        all_messages = []
+        for msg in message_frequency:
+            if message_frequency[msg] > 1:
+                all_messages.append("{} x{}".format(msg, message_frequency[msg]))
+            else:
+                all_messages.append(msg)
+
         for n, msg in enumerate(all_messages):
             prepared += msg
             if n < len(all_messages) - 1:
@@ -245,12 +271,20 @@ def draw_everything():
         stdscr.addstr(0, 0, prepared)
         all_messages = []
 
+    stdscr.refresh()
+
 
 if __name__ == "__main__":
     status("Welcome to my final project! f: fire, r: reload, q: quit")
 
+    reload_delay = False
+
     # The main game loop.
     while True:
+        if reload_delay:
+            reload_delay = False
+            # one last hack
+            status("{} finishes reloading".format(getpass.getuser()))
         for o in all_objects:
             # Allow objects to make decisions, leading to intents
             o.ai(player)
@@ -338,29 +372,44 @@ if __name__ == "__main__":
                 # Unfortunately, I found myself repeating a lot of logic from the attack intent. It would be nice to refactor this.
                 if closest_killable_object:
                     accuracy = 100 - ((lowest_dist ** 0.7) * 10)
-                    status("{} takes aim at {}, accuracy {}%".format(o.name, closest_killable_object.name, accuracy))
+                    status("{} takes aim at {}".format(o.name, closest_killable_object.name))
 
-                    if random.randint(1, 100) < accuracy:
-                        status("{} shoots {}".format(o.name, closest_killable_object.name))
-                        potential_dmg = o.bullet_dmg * (accuracy / 100)
-                        closest_killable_object.hp -= potential_dmg
-                        if closest_killable_object.hp < 1:
-                            # TODO: Stop repeating logic from attack intent
-                            if closest_killable_object == player or has_los(player, closest_killable_object):
-                                status("{} has died!".format(closest_killable_object.name))
-                            corpse = Object(closest_killable_object.x, closest_killable_object.y, "c")
-                            corpse.name = "{} corpse".format(closest_killable_object.name)
-                            corpse.hp = 100
-                            all_objects.remove(closest_killable_object)
-                            all_objects.append(corpse)
+                    if o.bullet_rounds < 1:
+                        status("You must reload!")
                     else:
-                        status("{} misses the {}".format(o.name, closest_killable_object.name))
+                        if random.randint(1, 100) < accuracy:
+                            status("{} hits the {}".format(o.name, closest_killable_object.name))
+                            potential_dmg = o.bullet_dmg * (accuracy / 100)
+                            closest_killable_object.hp -= potential_dmg
+                            if closest_killable_object.hp < 1:
+                                # TODO: Stop repeating logic from attack intent
+                                if closest_killable_object == player or has_los(player, closest_killable_object):
+                                    status("{} has died!".format(closest_killable_object.name))
+                                corpse = Object(closest_killable_object.x, closest_killable_object.y, "c")
+                                corpse.name = "{} corpse".format(closest_killable_object.name)
+                                corpse.hp = 100
+                                all_objects.remove(closest_killable_object)
+                                all_objects.append(corpse)
+                        else:
+                            status("{} misses the {}".format(o.name, closest_killable_object.name))
 
+                        casing = Object(o.x, o.y, "=")
+                        casing.name = "shell casing"
+                        all_objects.append(casing)
 
-
+                        o.bullet_rounds -= 1
                 else:
                     if o == player:
                         status("{} doesn't see anything to shoot".format(o.name))
+
+            if o.intent == INTENT_RELOAD:
+                status("{} starts reloading".format(o.name))
+                clip = Object(o.x, o.y, "/")
+                clip.name = "empty clip"
+                all_objects.append(clip)
+                o.bullet_rounds = 8
+                # cheap hack to make the game progress one extra turn before the player can do anything
+                reload_delay = True
 
             # Always reset their intent to nothing, this allows the next turn to continue
             o.intent = None
@@ -368,18 +417,27 @@ if __name__ == "__main__":
         # Draw tiles, and objects
         draw_everything()
 
-        # Ask the user what their next move is
-        key = stdscr.getkey()
+        # One last indicator the player is dead
+        if player.hp < 1:
+            stdscr.addstr(0, 0, "You died!", curses.A_REVERSE)
 
-        if key == "KEY_UP":
-            player.intent = INTENT_MOVE_UP
-        elif key == "KEY_DOWN":
-            player.intent = INTENT_MOVE_DOWN
-        elif key == "KEY_LEFT":
-            player.intent = INTENT_MOVE_LEFT
-        elif key == "KEY_RIGHT":
-            player.intent = INTENT_MOVE_RIGHT
-        elif key == "f":
-            player.intent = INTENT_FIRE
-        elif key == "q":
-            break
+        if reload_delay:
+            time.sleep(1)
+        else:
+            # Ask the user what their next move is
+            key = stdscr.getkey()
+
+            if key == "KEY_UP":
+                player.intent = INTENT_MOVE_UP
+            elif key == "KEY_DOWN":
+                player.intent = INTENT_MOVE_DOWN
+            elif key == "KEY_LEFT":
+                player.intent = INTENT_MOVE_LEFT
+            elif key == "KEY_RIGHT":
+                player.intent = INTENT_MOVE_RIGHT
+            elif key == "f":
+                player.intent = INTENT_FIRE
+            elif key == "r":
+                player.intent = INTENT_RELOAD
+            elif key == "q":
+                break
