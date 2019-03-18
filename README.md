@@ -17,7 +17,7 @@ If you're running Windows, you will also need curses
     
 
 ## Running the game
-The game might not work unless it's run directly in your terminal.
+You may need to make your terminal slightly bigger before the game will run correctly.
 
     git clone https://github.com/ayancey/CS162.git
     cd CS162
