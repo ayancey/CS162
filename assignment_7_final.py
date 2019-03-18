@@ -3,15 +3,12 @@
 # Alex Yancey
 # Joseph Jess, CS162
 
-import random
+# i tried to implement this myself but math is hard :(
+from bresenham import bresenham
 import curses
 import math
 import random
 import getpass
-
-
-# i tried to implement this myself but math is hard :(
-from bresenham import bresenham
 
 
 class Tile(object):
@@ -40,6 +37,7 @@ INTENT_MOVE_DOWN = 1
 INTENT_MOVE_LEFT = 2
 INTENT_MOVE_RIGHT = 3
 INTENT_ATTACK = 4
+INTENT_FIRE = 5
 
 
 all_messages = []
@@ -47,7 +45,7 @@ all_messages = []
 
 def status(msg):
     global all_messages
-    all_messages.insert(0, [msg, 3])
+    all_messages.append(msg)
 
 
 class Object(object):
@@ -101,8 +99,9 @@ class Enemy(Killable):
 class Player(Killable):
     # set player name to username of computer
     name = getpass.getuser()
-    attack_dmg = 100
+    attack_dmg = 2
     attack_verb = "{} defends helplessly against the {}"
+    bullet_dmg = 7
 
 
 class Zombie(Enemy):
@@ -236,21 +235,15 @@ def draw_everything():
         if do_draw:
             o.draw()
 
-    # Show status messages, which decay after 3 turns
+    # Show status messages, which disappear after next turn
     if all_messages:
-        all_messages = all_messages[:3]
         prepared = ""
         for n, msg in enumerate(all_messages):
-            prepared += msg[0]
+            prepared += msg
             if n < len(all_messages) - 1:
                 prepared += ", "
-            msg[1] -= 1
-
-        for msg in all_messages:
-            if msg[1] < 1:
-                all_messages.remove(msg)
-
         stdscr.addstr(0, 0, prepared)
+        all_messages = []
 
 
 if __name__ == "__main__":
@@ -279,6 +272,7 @@ if __name__ == "__main__":
             if not tiles[theoretical_y][theoretical_x].blocking:
                 target = None
 
+                # If a killable object is about to move into another killable object, set its intent to attack
                 if isinstance(o, Killable):
                     for oo in all_objects:
                         if theoretical_x == oo.x:
@@ -324,7 +318,51 @@ if __name__ == "__main__":
                         all_objects.remove(target)
                         all_objects.append(corpse)
 
+            if o.intent == INTENT_FIRE:
+                closest_killable_object = None
+                lowest_dist = None
 
+                for oo in all_objects:
+                    if o != oo:
+                        if isinstance(oo, Killable):
+                            if has_los(o, oo):
+                                dist = math.sqrt(((oo.x - o.x)**2) + ((oo.y - o.y)**2))
+                                if lowest_dist is None:
+                                    lowest_dist = dist
+                                    closest_killable_object = oo
+                                else:
+                                    if dist < lowest_dist:
+                                        lowest_dist = dist
+                                        closest_killable_object = oo
+
+                # Unfortunately, I found myself repeating a lot of logic from the attack intent. It would be nice to refactor this.
+                if closest_killable_object:
+                    accuracy = 100 - ((lowest_dist ** 0.7) * 10)
+                    status("{} takes aim at {}, accuracy {}%".format(o.name, closest_killable_object.name, accuracy))
+
+                    if random.randint(1, 100) < accuracy:
+                        status("{} shoots {}".format(o.name, closest_killable_object.name))
+                        potential_dmg = o.bullet_dmg * (accuracy / 100)
+                        closest_killable_object.hp -= potential_dmg
+                        if closest_killable_object.hp < 1:
+                            # TODO: Stop repeating logic from attack intent
+                            if closest_killable_object == player or has_los(player, closest_killable_object):
+                                status("{} has died!".format(closest_killable_object.name))
+                            corpse = Object(closest_killable_object.x, closest_killable_object.y, "c")
+                            corpse.name = "{} corpse".format(closest_killable_object.name)
+                            corpse.hp = 100
+                            all_objects.remove(closest_killable_object)
+                            all_objects.append(corpse)
+                    else:
+                        status("{} misses the {}".format(o.name, closest_killable_object.name))
+
+
+
+                else:
+                    if o == player:
+                        status("{} doesn't see anything to shoot".format(o.name))
+
+            # Always reset their intent to nothing, this allows the next turn to continue
             o.intent = None
 
         # Draw tiles, and objects
@@ -341,5 +379,7 @@ if __name__ == "__main__":
             player.intent = INTENT_MOVE_LEFT
         elif key == "KEY_RIGHT":
             player.intent = INTENT_MOVE_RIGHT
+        elif key == "f":
+            player.intent = INTENT_FIRE
         elif key == "q":
             break
